@@ -1,19 +1,74 @@
 #include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/display.h>
 #include <lvgl.h>
+#include "baumer.h"
 
-static void set_angle(void *obj, int32_t v)
+static lv_obj_t *label;
+static lv_obj_t *img;
+
+static const uint32_t colors[] = {
+    0xFF0000, // red 
+    0x00FF00, // green
+    0x0000FF, // blue 
+    0xFFFFFF, // white 
+    0x000000, // black 
+    0xFFFF00, // yellow 
+    0x00FFFF, // cyan 
+    0xFF00FF, // magenta 
+};
+
+static const char *words[] = {
+    "I",
+    "want",
+    "to",
+    "work",
+    "@",
+    "",
+    "",
+    ""
+};
+
+static void color_timer_cb(lv_timer_t *timer)
 {
-    printk("angle: %d\n", v);
-    lv_obj_set_style_transform_rotation(obj, v, 0);
+    static uint32_t idx = 0;
+
+    lv_obj_t *screen = lv_timer_get_user_data(timer);
+
+    lv_obj_set_style_bg_color(
+        screen,
+        lv_color_hex(colors[idx]),
+        LV_PART_MAIN);
+
+    idx = (idx + 1) % (sizeof(colors) / sizeof(colors[0]));
+}
+
+static void word_timer_cb(lv_timer_t *timer)
+{
+    static size_t idx = 0;
+
+    lv_label_set_text(label, words[idx]);
+
+    if (idx > 4) {
+        lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(label, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    idx++;
+    if (idx >= ARRAY_SIZE(words)) {
+        idx = 0;
+    }
 }
 
 int main(void)
 {
-    /* Get display */
-    const struct device *display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+    printk("I am alive!\n");
 
+    lv_init();
+    printk("lv_init done.\n");
+
+    const struct device *display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
     if (!device_is_ready(display)) {
         printk("Display not ready\n");
         return -1;
@@ -21,70 +76,38 @@ int main(void)
 
     printk("Display ready\n");
 
-    /* LVGL must be initialized by Zephyr already, but we ensure clean screen */
-    lv_obj_t *scr = lv_scr_act();
+    lv_obj_t *screen = lv_scr_act();
 
-    /* Create label */
-    lv_obj_t *label = lv_label_create(scr);
-    lv_label_set_text(label, "Zephyr LVGL");
+    img = lv_image_create(screen);
+    lv_image_set_src(img, &baumer);
+    lv_obj_center(img);
+
+    label = lv_label_create(screen);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(label);
+    lv_label_set_text(label, words[0]);
 
-    /* IMPORTANT: set pivot to center of SSD1331 (96x64) */
-    lv_obj_set_style_transform_pivot_x(label, 48, 0);
-    lv_obj_set_style_transform_pivot_y(label, 32, 0);
 
-    /* Optional: make text easier to see */
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+    bool color_test = false;
+    if (color_test) {
+        lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+        lv_timer_create(color_timer_cb, 500, screen);
+    } else {
+        lv_timer_create(word_timer_cb, 500, label);
+    }
 
-    /* Animation */
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, label);
-    lv_anim_set_exec_cb(&a, set_angle);
-    lv_anim_set_values(&a, 0, 3600); /* 0 → 360° (0.1° units) */
-    lv_anim_set_time(&a, 3000);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&a);
+    lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
 
-    /* LVGL task loop (ONLY needed if Zephyr config doesn't already handle it) */
+    lv_obj_set_style_bg_color(
+        screen,
+        lv_color_hex(0x000000),
+        LV_PART_MAIN);
+
     while (1) {
         lv_timer_handler();
-        k_msleep(10);
+        k_msleep(1);
     }
-
-
     return 0;
 }
-
-/*
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/display/cfb.h>
-#include <lvgl.h>
-
-int main(void)
-{
-    printk("Starting LVGL SSD1331 demo\n");
-
-    printk("display: %p\n", device_get_binding("SSD1331"));
-
-    const struct device *display = DEVICE_DT_GET_ANY(solomon_ssd1331);
-
-    if (!device_is_ready(display)) {
-        printk("Display not ready!\n");
-        return -1;
-    }
-
-
-    lv_obj_t *label = lv_label_create(lv_scr_act());
-    lv_label_set_text(label, "Hello ESP32");
-    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
-
-    while (1) {
-        lv_task_handler();
-        k_sleep(K_MSEC(5));
-    }
-
-    return 0;
-}
-*/

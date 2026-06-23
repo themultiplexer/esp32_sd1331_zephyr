@@ -1,7 +1,22 @@
+&pinctrl {
+    spim2_default: spim2_default {
+        group1 {
+            pinmux = <SPIM2_MISO_GPIO5>,
+                     <SPIM2_SCLK_GPIO6>,
+                     <SPIM2_MOSI_GPIO7>;
+        };
+    };
+};
+
+
 /{
 	chosen {
 		zephyr,display = &ssd1331;
 	};
+
+    aliases {
+        spibus = &spi2;
+    };
 
     lvgl_displays: my-displays {
             compatible = "zephyr,displays";
@@ -12,10 +27,10 @@
 	mipi_dbi1 {
         compatible = "zephyr,mipi-dbi-spi";
 
-        spi-dev = <&spi3>;
+        spi-dev = <&spi2>;
 
-        dc-gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;
-        reset-gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+        dc-gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio0 9 GPIO_ACTIVE_LOW>;
 
         write-only;
 
@@ -52,7 +67,11 @@
 	};
 };
 
-&spi3 {
-	status = "okay";
-	cs-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+&spi2 {
+    status = "okay";
+/*    cs-gpios = <&gpio0 16 GPIO_ACTIVE_LOW>; */
+    clock-frequency = <400000>;
+    pinctrl-0 = <&spim2_default>;
+    pinctrl-names = "default";
+
 };
