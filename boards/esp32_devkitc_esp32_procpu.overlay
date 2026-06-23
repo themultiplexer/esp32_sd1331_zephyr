@@ -1,0 +1,57 @@
+/{
+	chosen {
+		zephyr,display = &ssd1331;
+	};
+
+    lvgl_displays: my-displays {
+            compatible = "zephyr,displays";
+            displays = <&ssd1331>;
+            status = "okay";
+    };
+
+	mipi_dbi1 {
+        compatible = "zephyr,mipi-dbi-spi";
+
+        spi-dev = <&spi3>;
+
+        dc-gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+
+        write-only;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ssd1331: ssd1331@0 {
+            compatible = "solomon,ssd1331";
+            reg = <0>;
+            width = <96>;
+            height = <64>;
+
+            display-offset = <0>;
+            start-line = <0>;
+            multiplex-ratio = <63>;
+
+            phase-length = <0x31>;
+            oscillator-freq = <0xF0>;
+
+            mipi-mode = "MIPI_DBI_MODE_SPI_4WIRE";
+            mipi-max-frequency = <4000000>;
+
+            precharge-time-a = <0x70>;
+            precharge-time-b = <0x70>;
+            precharge-time-c = <0x70>;
+
+            precharge-voltage = <0x3A>;
+            vcomh-voltage = <0x20>;
+
+            current-att = <0x08>;
+            remap-value = <0x72>;
+        };
+	};
+};
+
+&spi3 {
+	status = "okay";
+	cs-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+};
